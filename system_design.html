@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>智能简历分析系统 - 架构设计图</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif; background: #0f0f23; color: #e0e0e0; min-height: 100vh; overflow-x: hidden; }
+.header { text-align: center; padding: 40px 20px 20px; }
+.header h1 { font-size: 2.5em; background: linear-gradient(135deg, #667eea, #764ba2, #f093fb); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: 10px; }
+.header p { color: #888; font-size: 1.1em; }
+.container { max-width: 1400px; margin: 0 auto; padding: 20px; }
+
+.flow-section { margin-bottom: 50px; }
+.section-title { text-align: center; font-size: 1.5em; color: #667eea; margin-bottom: 30px; letter-spacing: 2px; }
+
+.flow-row { display: flex; justify-content: center; align-items: center; gap: 20px; flex-wrap: wrap; margin-bottom: 30px; }
+
+.card {
+    background: linear-gradient(145deg, #1a1a3e, #252550);
+    border: 1px solid rgba(102, 126, 234, 0.3);
+    border-radius: 16px;
+    padding: 24px;
+    min-width: 220px;
+    max-width: 280px;
+    text-align: center;
+    transition: all 0.4s ease;
+    position: relative;
+    overflow: hidden;
+}
+.card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, #667eea, #764ba2, #f093fb);
+}
+.card:hover { transform: translateY(-8px); border-color: rgba(102, 126, 234, 0.7); box-shadow: 0 20px 40px rgba(102, 126, 234, 0.2); }
+.card .icon { font-size: 2.5em; margin-bottom: 12px; }
+.card h3 { font-size: 1.15em; color: #f093fb; margin-bottom: 8px; }
+.card p { font-size: 0.85em; color: #aaa; line-height: 1.5; }
+
+.arrow {
+    font-size: 2em;
+    color: #667eea;
+    animation: pulse 2s infinite;
+}
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+}
+
+.architecture-grid {
+    display: grid;
+    grid-template-columns: 1fr 80px 1fr 80px 1fr;
+    gap: 0;
+    align-items: center;
+    margin: 40px 0;
+}
+
+.layer-box {
+    background: linear-gradient(145deg, #1a1a3e, #252550);
+    border: 1px solid rgba(102, 126, 234, 0.3);
+    border-radius: 16px;
+    padding: 20px;
+    text-align: center;
+}
+.layer-box h3 { color: #667eea; margin-bottom: 12px; font-size: 1.1em; }
+.layer-box .items { display: flex; flex-direction: column; gap: 8px; }
+.layer-box .item {
+    background: rgba(102, 126, 234, 0.1);
+    border: 1px solid rgba(102, 126, 234, 0.2);
+    border-radius: 8px;
+    padding: 8px 12px;
+    font-size: 0.85em;
+    transition: all 0.3s;
+}
+.layer-box .item:hover { background: rgba(102, 126, 234, 0.2); border-color: rgba(102, 126, 234, 0.5); }
+
+.layer-arrow { text-align: center; font-size: 1.8em; color: #f093fb; }
+
+.detail-section { margin-top: 50px; }
+.detail-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 24px; }
+.detail-card {
+    background: linear-gradient(145deg, #1a1a3e, #252550);
+    border: 1px solid rgba(102, 126, 234, 0.3);
+    border-radius: 16px;
+    padding: 28px;
+    transition: all 0.4s;
+}
+.detail-card:hover { border-color: rgba(102, 126, 234, 0.7); transform: translateY(-4px); }
+.detail-card h3 { color: #f093fb; font-size: 1.2em; margin-bottom: 16px; display: flex; align-items: center; gap: 10px; }
+.detail-card .tech-tag {
+    display: inline-block;
+    background: rgba(102, 126, 234, 0.15);
+    border: 1px solid rgba(102, 126, 234, 0.3);
+    border-radius: 20px;
+    padding: 4px 12px;
+    font-size: 0.8em;
+    margin: 3px;
+    color: #a0a0ff;
+}
+.detail-card ul { list-style: none; padding: 0; }
+.detail-card li { padding: 6px 0; font-size: 0.9em; color: #bbb; border-bottom: 1px solid rgba(255,255,255,0.05); }
+.detail-card li::before { content: '▸ '; color: #667eea; }
+
+.data-flow {
+    background: linear-gradient(145deg, #1a1a3e, #252550);
+    border: 1px solid rgba(102, 126, 234, 0.3);
+    border-radius: 16px;
+    padding: 30px;
+    margin: 40px 0;
+}
+.data-flow h3 { text-align: center; color: #667eea; font-size: 1.3em; margin-bottom: 20px; }
+.flow-steps { display: flex; justify-content: center; align-items: center; flex-wrap: wrap; gap: 10px; }
+.step {
+    background: rgba(102, 126, 234, 0.15);
+    border: 1px solid rgba(102, 126, 234, 0.3);
+    border-radius: 12px;
+    padding: 12px 20px;
+    text-align: center;
+    min-width: 130px;
+}
+.step .num { color: #f093fb; font-size: 1.2em; font-weight: bold; }
+.step .label { font-size: 0.85em; color: #ccc; margin-top: 4px; }
+.step-arrow { color: #667eea; font-size: 1.5em; }
+
+.footer { text-align: center; padding: 40px; color: #555; font-size: 0.9em; }
+</style>
+</head>
+<body>
+
+<div class="header">
+    <h1>🧠 智能简历分析系统</h1>
+    <p>Resume Intelligence Analysis System — 架构设计图</p>
+</div>
+
+<div class="container">
+
+    <!-- 核心流程 -->
+    <div class="flow-section">
+        <div class="section-title">▎核心数据流</div>
+        <div class="flow-row">
+            <div class="card">
+                <div class="icon">📄</div>
+                <h3>简历输入</h3>
+                <p>用户粘贴/上传简历文本</p>
+            </div>
+            <div class="arrow">→</div>
+            <div class="card">
+                <div class="icon">🔍</div>
+                <h3>技能提取</h3>
+                <p>NLP关键词匹配 + 正则提取技术栈</p>
+            </div>
+            <div class="arrow">→</div>
+            <div class="card">
+                <div class="icon">🏷️</div>
+                <h3>分类识别</h3>
+                <p>TF-IDF + 机器学习分类器</p>
+            </div>
+            <div class="arrow">→</div>
+            <div class="card">
+                <div class="icon">💰</div>
+                <h3>薪资预测</h3>
+                <p>基于技能组合的回归预测模型</p>
+            </div>
+            <div class="arrow">→</div>
+            <div class="card">
+                <div class="icon">💡</div>
+                <h3>修改建议</h3>
+                <p>对比高薪简历生成优化方案</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- 三层架构 -->
+    <div class="section-title">▎三层系统架构</div>
+    <div class="architecture-grid">
+        <div class="layer-box">
+            <h3>🖥️ 表现层 (Streamlit)</h3>
+            <div class="items">
+                <div class="item">简历输入界面</div>
+                <div class="item">分析结果仪表盘</div>
+                <div class="item">技能雷达图</div>
+                <div class="item">薪资预测可视化</div>
+                <div class="item">修改建议面板</div>
+            </div>
+        </div>
+        <div class="layer-arrow">⟷</div>
+        <div class="layer-box">
+            <h3>⚙️ 业务逻辑层</h3>
+            <div class="items">
+                <div class="item">技能提取引擎</div>
+                <div class="item">简历分类器</div>
+                <div class="item">薪资预测模型</div>
+                <div class="item">建议生成器</div>
+                <div class="item">特征工程管道</div>
+            </div>
+        </div>
+        <div class="layer-arrow">⟷</div>
+        <div class="layer-box">
+            <h3>💾 数据层</h3>
+            <div class="items">
+                <div class="item">简历数据集 (9000条)</div>
+                <div class="item">技能词典库</div>
+                <div class="item">薪资参考表</div>
+                <div class="item">训练好的模型</div>
+                <div class="item">分类标签映射</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 四大模块详情 -->
+    <div class="detail-section">
+        <div class="section-title">▎四大核心模块</div>
+        <div class="detail-grid">
+            <div class="detail-card">
+                <h3>🔍 模块一：技能提取与标签生成</h3>
+                <div>
+                    <span class="tech-tag">正则表达式</span>
+                    <span class="tech-tag">关键词匹配</span>
+                    <span class="tech-tag">TF-IDF</span>
+                    <span class="tech-tag">技能词典</span>
+                </div>
+                <ul>
+                    <li>从简历文本中自动提取编程语言、框架、工具等技能</li>
+                    <li>构建技能标签体系（编程语言/框架/数据库/工具/软技能）</li>
+                    <li>技能频率统计与热门技能排名</li>
+                    <li>技能关联分析（常共现的技能组合）</li>
+                </ul>
+            </div>
+            <div class="detail-card">
+                <h3>🏷️ 模块二：简历智能分类</h3>
+                <div>
+                    <span class="tech-tag">TF-IDF向量化</span>
+                    <span class="tech-tag">RandomForest</span>
+                    <span class="tech-tag">SVM</span>
+                    <span class="tech-tag">9类分类</span>
+                </div>
+                <ul>
+                    <li>自动识别简历所属职位类别</li>
+                    <li>9大类别：Java/Web/SQL/BA/网络/ETL/BI/PM/招聘</li>
+                    <li>分类置信度评分</li>
+                    <li>多标签分类（一份简历可能跨领域）</li>
+                </ul>
+            </div>
+            <div class="detail-card">
+                <h3>💰 模块三：薪资预测</h3>
+                <div>
+                    <span class="tech-tag">RandomForest回归</span>
+                    <span class="tech-tag">特征工程</span>
+                    <span class="tech-tag">技能-薪资映射</span>
+                    <span class="tech-tag">经验年限</span>
+                </div>
+                <ul>
+                    <li>基于提取的技能组合预测薪资范围</li>
+                    <li>考虑因素：技能稀缺度、经验年限、职位类别、地区</li>
+                    <li>输出薪资区间（最低/中位/最高）</li>
+                    <li>各技能对薪资的贡献度分析</li>
+                </ul>
+            </div>
+            <div class="detail-card">
+                <h3>💡 模块四：简历修改建议</h3>
+                <div>
+                    <span class="tech-tag">对比分析</span>
+                    <span class="tech-tag">技能差距识别</span>
+                    <span class="tech-tag">高薪简历模板</span>
+                    <span class="tech-tag">NLP相似度</span>
+                </div>
+                <ul>
+                    <li>对比同类别高薪简历，识别技能差距</li>
+                    <li>推荐可学习的高价值技能</li>
+                    <li>简历结构优化建议（缺失模块提醒）</li>
+                    <li>关键词密度优化（提升ATS通过率）</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- 数据处理流程 -->
+    <div class="data-flow">
+        <h3>📊 数据处理管道</h3>
+        <div class="flow-steps">
+            <div class="step"><div class="num">1</div><div class="label">原始简历文本</div></div>
+            <div class="step-arrow">→</div>
+            <div class="step"><div class="num">2</div><div class="label">文本清洗去噪</div></div>
+            <div class="step-arrow">→</div>
+            <div class="step"><div class="num">3</div><div class="label">技能关键词提取</div></div>
+            <div class="step-arrow">→</div>
+            <div class="step"><div class="num">4</div><div class="label">TF-IDF向量化</div></div>
+            <div class="step-arrow">→</div>
+            <div class="step"><div class="num">5</div><div class="label">特征矩阵构建</div></div>
+            <div class="step-arrow">→</div>
+            <div class="step"><div class="num">6</div><div class="label">模型推理</div></div>
+            <div class="step-arrow">→</div>
+            <div class="step"><div class="num">7</div><div class="label">结果可视化</div></div>
+        </div>
+    </div>
+
+    <!-- 技术栈 -->
+    <div class="detail-section">
+        <div class="section-title">▎技术栈</div>
+        <div class="detail-grid">
+            <div class="detail-card">
+                <h3>🐍 后端 & ML</h3>
+                <div>
+                    <span class="tech-tag">Python 3.10+</span>
+                    <span class="tech-tag">scikit-learn</span>
+                    <span class="tech-tag">pandas</span>
+                    <span class="tech-tag">numpy</span>
+                    <span class="tech-tag">re (正则)</span>
+                    <span class="tech-tag">joblib</span>
+                </div>
+            </div>
+            <div class="detail-card">
+                <h3>🌐 前端 & 可视化</h3>
+                <div>
+                    <span class="tech-tag">Streamlit</span>
+                    <span class="tech-tag">Plotly</span>
+                    <span class="tech-tag">matplotlib</span>
+                    <span class="tech-tag">HTML/CSS</span>
+                </div>
+            </div>
+            <div class="detail-card">
+                <h3>📁 数据</h3>
+                <div>
+                    <span class="tech-tag">9000条简历</span>
+                    <span class="tech-tag">9大职位类别</span>
+                    <span class="tech-tag">3691种职位</span>
+                    <span class="tech-tag">CSV格式</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<div class="footer">
+    智能简历分析系统 — 架构设计图 v1.0
+</div>
+
+</body>
+</html>
