@@ -164,12 +164,12 @@ st.markdown("""
 DATA_PATH = os.path.join(BASE_DIR, "data", "Resume_dataset.csv")
 
 
-def ensure_cache():
-    parquet_path = os.path.join(CACHE_DIR, "processed_data.parquet")
-    if os.path.exists(parquet_path):
+def ensure_models():
+    classifier_path = os.path.join(CACHE_DIR, "classifier.joblib")
+    if os.path.exists(classifier_path):
         return True
     if not os.path.exists(DATA_PATH):
-        st.error(f"找不到数据集文件: {DATA_PATH}")
+        st.error("找不到数据集文件，无法训练模型。请联系管理员。")
         st.stop()
     st.warning("首次运行需要预处理数据并训练模型，请稍候...")
     preprocess_script = os.path.join(BASE_DIR, "preprocess_distilled.py")
@@ -186,14 +186,15 @@ def ensure_cache():
 
 @st.cache_resource
 def load_cached_data():
-    ensure_cache()
-    df = pd.read_parquet(os.path.join(CACHE_DIR, "processed_data.parquet"))
-    return df
+    parquet_path = os.path.join(CACHE_DIR, "processed_data.parquet")
+    if os.path.exists(parquet_path):
+        return pd.read_parquet(parquet_path)
+    return None
 
 
 @st.cache_resource
 def load_cached_models():
-    ensure_cache()
+    ensure_models()
     return {
         "tfidf_vectorizer": joblib.load(os.path.join(CACHE_DIR, "tfidf_vectorizer.joblib")),
         "label_encoder": joblib.load(os.path.join(CACHE_DIR, "label_encoder.joblib")),
@@ -305,7 +306,7 @@ def main():
     st.title("🧠 智能简历分析系统")
     st.markdown("---")
 
-    with st.spinner("正在加载预计算数据..."):
+    with st.spinner("正在加载模型..."):
         df = load_cached_data()
         models = load_cached_models()
 
@@ -315,63 +316,78 @@ def main():
 
     with tab1:
         st.header("📊 数据集概览")
-        stats = get_feature_stats(df)
+        if df is None:
+            st.info("数据集概览需要完整数据文件，当前仅加载了精简模型。核心功能（简历分析、薪资预测、修改建议）可正常使用。")
+            st.markdown("### 🤖 模型性能")
+            col_m1, col_m2 = st.columns(2)
+            with col_m1:
+                st.markdown("**分类模型**")
+                st.write(f"准确率: **{models['class_metrics']['accuracy']:.2%}**")
+            with col_m2:
+                st.markdown("**薪资预测模型**")
+                sm = models["salary_metrics"]
+                st.write(f"R²: **{sm['R2']:.4f}** | RMSE: **{sm['RMSE']:.0f}** | MAE: **{sm['MAE']:.0f}**")
+        else:
+            stats = get_feature_stats(df)
 
-        col1, col2, col3, col4 = st.columns(4)
-        with col1:
-            st.markdown(f'<div class="metric-card"><h2>{stats["total_resumes"]}</h2><p>简历总数</p></div>', unsafe_allow_html=True)
-        with col2:
-            st.markdown(f'<div class="metric-card"><h2>{len(stats["categories"])}</h2><p>职位类别</p></div>', unsafe_allow_html=True)
-        with col3:
-            st.markdown(f'<div class="metric-card"><h2>{stats["avg_skill_count"]:.1f}</h2><p>平均技能数</p></div>', unsafe_allow_html=True)
-        with col4:
-            st.markdown(f'<div class="metric-card"><h2>{stats["avg_salary"]:.0f}</h2><p>平均薪资(元/月)</p></div>', unsafe_allow_html=True)
+            col1, col2, col3, col4 = st.columns(4)
+            with col1:
+                st.markdown(f'<div class="metric-card"><h2>{stats["total_resumes"]}</h2><p>简历总数</p></div>', unsafe_allow_html=True)
+            with col2:
+                st.markdown(f'<div class="metric-card"><h2>{len(stats["categories"])}</h2><p>职位类别</p></div>', unsafe_allow_html=True)
+            with col3:
+                st.markdown(f'<div class="metric-card"><h2>{stats["avg_skill_count"]:.1f}</h2><p>平均技能数</p></div>', unsafe_allow_html=True)
+            with col4:
+                st.markdown(f'<div class="metric-card"><h2>{stats["avg_salary"]:.0f}</h2><p>平均薪资(元/月)</p></div>', unsafe_allow_html=True)
 
-        st.markdown("### 📋 类别分布")
-        cat_df = pd.DataFrame(
-            list(stats["categories"].items()),
-            columns=["类别", "数量"]
-        )
-        fig_cat = px.bar(cat_df, x="类别", y="数量", color="类别",
-                         color_discrete_sequence=px.colors.qualitative.Set2)
-        fig_cat.update_layout(showlegend=False, height=400, paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)")
-        st.plotly_chart(fig_cat, use_container_width=True)
-
-        col_a, col_b = st.columns(2)
-        with col_a:
-            st.markdown("### 🔥 热门技能 TOP 5")
-            skill_df = pd.DataFrame(
-                list(stats["top_skills"].items())[:5],
-                columns=["技能", "出现次数"]
+            st.markdown("### 📋 类别分布")
+            cat_df = pd.DataFrame(
+                list(stats["categories"].items()),
+                columns=["类别", "数量"]
             )
-            fig_skill = px.bar(skill_df, x="出现次数", y="技能", orientation="h",
-                              color="出现次数", color_continuous_scale="Blues")
-            fig_skill.update_layout(height=500, yaxis=dict(autorange="reversed"), paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)")
-            st.plotly_chart(fig_skill, use_container_width=True)
+            fig_cat = px.bar(cat_df, x="类别", y="数量", color="类别",
+                             color_discrete_sequence=px.colors.qualitative.Set2)
+            fig_cat.update_layout(showlegend=False, height=400, paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)")
+            st.plotly_chart(fig_cat, use_container_width=True)
 
-        with col_b:
-            st.markdown("### 📈 技能重要性 TOP 5")
-            if models["skill_importance"]:
-                imp_df = pd.DataFrame(models["skill_importance"][:5], columns=["技能", "重要性"])
-                fig_imp = px.bar(imp_df, x="重要性", y="技能", orientation="h",
-                                color="重要性", color_continuous_scale="Blues")
-                fig_imp.update_layout(height=500, yaxis=dict(autorange="reversed"), paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)")
-                st.plotly_chart(fig_imp, use_container_width=True)
+            col_a, col_b = st.columns(2)
+            with col_a:
+                st.markdown("### 🔥 热门技能 TOP 5")
+                skill_df = pd.DataFrame(
+                    list(stats["top_skills"].items())[:5],
+                    columns=["技能", "出现次数"]
+                )
+                fig_skill = px.bar(skill_df, x="出现次数", y="技能", orientation="h",
+                                  color="出现次数", color_continuous_scale="Blues")
+                fig_skill.update_layout(height=500, yaxis=dict(autorange="reversed"), paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)")
+                st.plotly_chart(fig_skill, use_container_width=True)
 
-        st.markdown("### 🤖 模型性能")
-        col_m1, col_m2 = st.columns(2)
-        with col_m1:
-            st.markdown("**分类模型**")
-            st.write(f"准确率: **{models['class_metrics']['accuracy']:.2%}**")
-        with col_m2:
-            st.markdown("**薪资预测模型**")
-            sm = models["salary_metrics"]
-            st.write(f"R²: **{sm['R2']:.4f}** | RMSE: **{sm['RMSE']:.0f}** | MAE: **{sm['MAE']:.0f}**")
+            with col_b:
+                st.markdown("### 📈 技能重要性 TOP 5")
+                if models["skill_importance"]:
+                    imp_df = pd.DataFrame(models["skill_importance"][:5], columns=["技能", "重要性"])
+                    fig_imp = px.bar(imp_df, x="重要性", y="技能", orientation="h",
+                                    color="重要性", color_continuous_scale="Blues")
+                    fig_imp.update_layout(height=500, yaxis=dict(autorange="reversed"), paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)")
+                    st.plotly_chart(fig_imp, use_container_width=True)
+
+            st.markdown("### 🤖 模型性能")
+            col_m1, col_m2 = st.columns(2)
+            with col_m1:
+                st.markdown("**分类模型**")
+                st.write(f"准确率: **{models['class_metrics']['accuracy']:.2%}**")
+            with col_m2:
+                st.markdown("**薪资预测模型**")
+                sm = models["salary_metrics"]
+                st.write(f"R²: **{sm['R2']:.4f}** | RMSE: **{sm['RMSE']:.0f}** | MAE: **{sm['MAE']:.0f}**")
 
     with tab2:
         st.header("🔍 简历智能分析")
 
-        input_method = st.radio("选择输入方式", ["使用示例简历", "粘贴简历文本", "从数据集选择示例"], horizontal=True)
+        input_options = ["使用示例简历", "粘贴简历文本"]
+        if df is not None:
+            input_options.append("从数据集选择示例")
+        input_method = st.radio("选择输入方式", input_options, horizontal=True)
 
         resume_text = ""
         if input_method == "使用示例简历":
@@ -384,7 +400,7 @@ def main():
         elif input_method == "粘贴简历文本":
             resume_text = st.text_area("请粘贴简历内容", height=250,
                                        placeholder="在此粘贴您的简历全文...")
-        else:
+        elif input_method == "从数据集选择示例" and df is not None:
             sample_idx = st.selectbox("选择示例简历",
                                       range(len(df)),
                                       format_func=lambda i: f"[{df.iloc[i]['category_cn']}] {df.iloc[i]['job_title']}")
@@ -447,7 +463,10 @@ def main():
     with tab3:
         st.header("💰 薪资预测")
 
-        input_method_2 = st.radio("选择输入方式", ["使用示例简历", "粘贴简历文本", "从数据集选择示例"], horizontal=True, key="salary_input")
+        input_options_2 = ["使用示例简历", "粘贴简历文本"]
+        if df is not None:
+            input_options_2.append("从数据集选择示例")
+        input_method_2 = st.radio("选择输入方式", input_options_2, horizontal=True, key="salary_input")
 
         salary_text = ""
         if input_method_2 == "使用示例简历":
@@ -460,7 +479,7 @@ def main():
         elif input_method_2 == "粘贴简历文本":
             salary_text = st.text_area("请粘贴简历内容", height=200,
                                        placeholder="在此粘贴您的简历全文...", key="salary_text")
-        else:
+        elif input_method_2 == "从数据集选择示例" and df is not None:
             sample_idx_2 = st.selectbox("选择示例简历",
                                         range(len(df)),
                                         format_func=lambda i: f"[{df.iloc[i]['category_cn']}] {df.iloc[i]['job_title']}",
@@ -515,20 +534,24 @@ def main():
                         fig_imp.update_layout(height=400, yaxis=dict(autorange="reversed"), paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)")
                         st.plotly_chart(fig_imp, use_container_width=True)
 
-                st.markdown("### 📈 同类别薪资分布")
-                cat_df = df[df["category"] == category]
-                fig_dist = px.histogram(cat_df, x="salary_mid", nbins=30,
-                                       title=f"{category_cn} 薪资分布",
-                                       color_discrete_sequence=["#4A90D9"])
-                fig_dist.add_vline(x=predicted_salary, line_dash="dash", line_color="#E74C3C",
-                                   annotation_text=f"预测: ¥{predicted_salary:,}")
-                fig_dist.update_layout(height=350, paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)")
-                st.plotly_chart(fig_dist, use_container_width=True)
+                if df is not None:
+                    st.markdown("### 📈 同类别薪资分布")
+                    cat_df = df[df["category"] == category]
+                    fig_dist = px.histogram(cat_df, x="salary_mid", nbins=30,
+                                           title=f"{category_cn} 薪资分布",
+                                           color_discrete_sequence=["#4A90D9"])
+                    fig_dist.add_vline(x=predicted_salary, line_dash="dash", line_color="#E74C3C",
+                                       annotation_text=f"预测: ¥{predicted_salary:,}")
+                    fig_dist.update_layout(height=350, paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)")
+                    st.plotly_chart(fig_dist, use_container_width=True)
 
     with tab4:
         st.header("💡 简历修改建议")
 
-        input_method_3 = st.radio("选择输入方式", ["使用示例简历", "粘贴简历文本", "从数据集选择示例"], horizontal=True, key="adv_input")
+        input_options_3 = ["使用示例简历", "粘贴简历文本"]
+        if df is not None:
+            input_options_3.append("从数据集选择示例")
+        input_method_3 = st.radio("选择输入方式", input_options_3, horizontal=True, key="adv_input")
 
         adv_text = ""
         if input_method_3 == "使用示例简历":
@@ -541,7 +564,7 @@ def main():
         elif input_method_3 == "粘贴简历文本":
             adv_text = st.text_area("请粘贴简历内容", height=200,
                                     placeholder="在此粘贴您的简历全文...", key="adv_text")
-        else:
+        elif input_method_3 == "从数据集选择示例" and df is not None:
             sample_idx_3 = st.selectbox("选择示例简历",
                                         range(len(df)),
                                         format_func=lambda i: f"[{df.iloc[i]['category_cn']}] {df.iloc[i]['job_title']}",
