@@ -164,39 +164,15 @@ st.markdown("""
 DATA_PATH = os.path.join(BASE_DIR, "data", "Resume_dataset.csv")
 
 
-def download_dataset():
-    if os.path.exists(DATA_PATH):
-        return True
-    os.makedirs(os.path.dirname(DATA_PATH), exist_ok=True)
-    st.info("正在下载数据集...")
-    try:
-        from huggingface_hub import hf_hub_download
-        hf_hub_download(
-            repo_id="ZSY04/resume-dataset",
-            filename="Resume_dataset.csv",
-            repo_type="dataset",
-            local_dir=os.path.dirname(DATA_PATH),
-        )
-        return True
-    except Exception:
-        try:
-            import urllib.request
-            url = "https://huggingface.co/datasets/ZSY04/resume-dataset/resolve/main/Resume_dataset.csv"
-            urllib.request.urlretrieve(url, DATA_PATH)
-            return True
-        except Exception as e:
-            st.error(f"数据集下载失败: {e}")
-            return False
-
-
 def ensure_cache():
     parquet_path = os.path.join(CACHE_DIR, "processed_data.parquet")
     if os.path.exists(parquet_path):
         return True
-    if not download_dataset():
+    if not os.path.exists(DATA_PATH):
+        st.error(f"找不到数据集文件: {DATA_PATH}")
         st.stop()
     st.warning("首次运行需要预处理数据并训练模型，请稍候...")
-    preprocess_script = os.path.join(BASE_DIR, "preprocess.py")
+    preprocess_script = os.path.join(BASE_DIR, "preprocess_distilled.py")
     python_exe = sys.executable
     result = subprocess.run(
         [python_exe, preprocess_script],
